@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\NISSI338\\source\\repos\\SendingJsonData\\SendingJsonData\\SendingJsonData\\SendingJsonData.csproj": {}
+    "C:\\Users\\NISSI338\\source\\repos\\USBcommunication\\SendingJsonData\\SendingJsonData\\SendingJsonData\\SendingJsonData.csproj": {}
   },
   "projects": {
-    "C:\\Users\\NISSI338\\source\\repos\\SendingJsonData\\SendingJsonData\\SendingJsonData\\SendingJsonData.csproj": {
+    "C:\\Users\\NISSI338\\source\\repos\\USBcommunication\\SendingJsonData\\SendingJsonData\\SendingJsonData\\SendingJsonData.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\NISSI338\\source\\repos\\SendingJsonData\\SendingJsonData\\SendingJsonData\\SendingJsonData.csproj",
+        "projectUniqueName": "C:\\Users\\NISSI338\\source\\repos\\USBcommunication\\SendingJsonData\\SendingJsonData\\SendingJsonData\\SendingJsonData.csproj",
         "projectName": "SendingJsonData",
-        "projectPath": "C:\\Users\\NISSI338\\source\\repos\\SendingJsonData\\SendingJsonData\\SendingJsonData\\SendingJsonData.csproj",
+        "projectPath": "C:\\Users\\NISSI338\\source\\repos\\USBcommunication\\SendingJsonData\\SendingJsonData\\SendingJsonData\\SendingJsonData.csproj",
         "packagesPath": "C:\\Users\\NISSI338\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\NISSI338\\source\\repos\\SendingJsonData\\SendingJsonData\\SendingJsonData\\obj\\",
+        "outputPath": "C:\\Users\\NISSI338\\source\\repos\\USBcommunication\\SendingJsonData\\SendingJsonData\\SendingJsonData\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
