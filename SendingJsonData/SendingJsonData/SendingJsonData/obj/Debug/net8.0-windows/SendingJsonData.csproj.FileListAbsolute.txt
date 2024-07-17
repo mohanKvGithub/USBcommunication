@@ -52,3 +52,4 @@ C:\Users\NISSI338\source\repos\USBcommunication\SendingJsonData\SendingJsonData\
 C:\Users\NISSI338\source\repos\USBcommunication\SendingJsonData\SendingJsonData\SendingJsonData\obj\Debug\net8.0-windows\SendingJsonData.pdb
 C:\Users\NISSI338\source\repos\USBcommunication\SendingJsonData\SendingJsonData\SendingJsonData\obj\Debug\net8.0-windows\SendingJsonData.genruntimeconfig.cache
 C:\Users\NISSI338\source\repos\USBcommunication\SendingJsonData\SendingJsonData\SendingJsonData\obj\Debug\net8.0-windows\ref\SendingJsonData.dll
+C:\Users\NISSI338\source\repos\USBcommunication\SendingJsonData\SendingJsonData\SendingJsonData\bin\Debug\net8.0-windows\Newtonsoft.Json.dll

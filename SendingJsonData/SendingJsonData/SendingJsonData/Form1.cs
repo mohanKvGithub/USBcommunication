@@ -5,17 +5,20 @@ using System.Text.Json;
 using System.Windows.Forms;
 using System.Management;
 using System.Text;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace SendingJsonData
 {
     public partial class Form1 : Form
     {
-        private List<WorkPermitSync> workPermitList= new List<WorkPermitSync>();
-        private List<List<WorkerSync>> workerList=new List<List<WorkerSync>>();
-        private int workerIndx=0;
+        private List<WorkPermit> workPermitList = new List<WorkPermit>();
+        private List<List<Employee>> workerList = new List<List<Employee>>();
+        private int workerIndx = 0;
         private int workPermitIndx = 0;
         private string curntWorkPermitNo;
         private string curntWorkerNo;
+        private int workPermitCount = 0;
+        private int workerCount = 0;
         private Process adbProcess;
         private CancellationTokenSource cancellationTokenSource;
         private ManagementEventWatcher watcher;
@@ -30,16 +33,18 @@ namespace SendingJsonData
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            textBox1.Multiline = true;
+
         }
         private async void syncDevice()
-        {        
-                workerIndx = 0;
-                workPermitIndx = 0;
-                StopHandShakeMonitoring();
-                runAdbCommand("logcat -c");
-                StartHandShakeMonitoring();
-                string command = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'NEW_WP_SYNC'";
-                runAdbCommand(command);
+        {
+            workerIndx = 0;
+            workPermitIndx = 0;
+            StopHandShakeMonitoring();
+            runAdbCommand("logcat -c");
+            StartHandShakeMonitoring();
+            string command = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'NEW_WP_SYNC'";
+            runAdbCommand(command);
         }
         private void StopHandShakeMonitoring()
         {
@@ -100,8 +105,12 @@ namespace SendingJsonData
             if (e.Data != null)
             {
                 string responseMsg = ParseLogData(e.Data);
+                string[] splitString = responseMsg.Split(",", 2);
 
-                
+                string data;
+                responseMsg = splitString[0];
+
+
                 InvokeIfNeeded(() =>
                 {
                     if (responseMsg.Equals("READY_NEW_WP_SYNC"))
@@ -110,7 +119,7 @@ namespace SendingJsonData
                         {
                             string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'WP_COUNT, {workPermitList.Count}'";
                             runAdbCommand(cmd);
-                           
+
                         });
                     }
                     else if (responseMsg.Equals("SUCCESS"))
@@ -142,6 +151,7 @@ namespace SendingJsonData
                     {
                         InvokeIfNeeded(() =>
                         {
+
                             SendWorker();
                             runAdbCommand("logcat -c");
                         });
@@ -173,10 +183,105 @@ namespace SendingJsonData
                     {
                         InvokeIfNeeded(() =>
                         {
-                            
+
                             runAdbCommand("logcat -c");
                         });
                     }
+                    //Data sync from android to Desktop
+                    switch (responseMsg)
+                    {
+                        case "UPDATE_WP_SYNC":
+                            InvokeIfNeeded(() =>
+                            {
+                                string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP_COUNT'";
+                                runAdbCommand(cmd);
+                                runAdbCommand("logcat -c");
+                            });
+                            break;
+                        case "WP_COUNT_TABLET":
+                            InvokeIfNeeded(() =>
+                            {
+                                textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                data = splitString[1];
+                                workPermitCount = Int32.Parse(data.Trim());
+                                workPermitIndx++;
+                                curntWorkPermitNo = workPermitIndx.ToString("D2");
+                                string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP{curntWorkPermitNo}_TABLET'";
+                                runAdbCommand(cmd);
+                                runAdbCommand("logcat -c");
+
+                            });
+                            break;
+                        case "W_SYNC_TABLET":
+                            InvokeIfNeeded(() =>
+                            {
+                                textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                data = splitString[1];
+                                workerCount = Int32.Parse(data.Trim());
+                                curntWorkerNo = workerIndx.ToString("D3");
+                                string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP{curntWorkPermitNo}_W{curntWorkerNo}_TABLET'";
+                                runAdbCommand(cmd);
+                                runAdbCommand("logcat -c");
+
+                            });
+                            break;
+                        case "SUCCESS_CLEAR":
+                            InvokeIfNeeded(() =>
+                            {
+
+                                runAdbCommand("logcat -c");
+                            });
+                            break;
+                        default:
+                            if (responseMsg.Equals($"WP{curntWorkPermitNo}_SYNC_TABLET"))
+                            {
+                                InvokeIfNeeded(() =>
+                                {
+                                    textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                    workerIndx = 1;
+                                    string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'WP{curntWorkPermitNo}_TABLET_RECEIVED'";
+                                    runAdbCommand(cmd);
+                                    runAdbCommand("logcat -c");
+                                });
+                            }
+                            else if (responseMsg.Equals($"WP{curntWorkPermitNo}_W{curntWorkerNo}_SYNC_TABLET"))
+                            {
+                                InvokeIfNeeded(() =>
+                                {
+
+
+                                    string cmd;
+                                    if (workerIndx >= workerCount && workPermitIndx >= workPermitCount)
+                                    {
+                                        textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                        cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'CLEAR_TABLET'";
+                                        runAdbCommand(cmd);
+                                        runAdbCommand("logcat -c");
+                                    }
+                                    else if (workerIndx >= workerCount)
+                                    {
+                                        textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                        workPermitIndx++;
+                                        curntWorkPermitNo = workPermitIndx.ToString("D2");
+                                        cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP{curntWorkPermitNo}_TABLET'";
+                                        runAdbCommand(cmd);
+                                        runAdbCommand("logcat -c");
+                                    }
+                                    else
+                                    {
+                                        workerIndx++;
+                                        curntWorkerNo = workerIndx.ToString("D3");
+                                        curntWorkPermitNo = workPermitIndx.ToString("D2");
+                                        textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                        cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP{curntWorkPermitNo}_W{curntWorkerNo}_TABLET'";
+                                        runAdbCommand(cmd);
+                                        runAdbCommand("logcat -c");
+                                    }
+                                });
+                            }
+                            break;
+                    };
+
                 });
             }
         }
@@ -287,150 +392,295 @@ namespace SendingJsonData
 
         private int LoadWorkers(int workPermitId)
         {
-            List<WorkerSync> worker = new List<WorkerSync>();
-            worker.Add(new WorkerSync
+            List<Employee> employees = new List<Employee>();
+            employees.Add(new Employee
             {
-                Id=1222,
-                Name="Suresh",
-                Title="Transport",
-                Fn="Sri",
-                Mn="dev",
-                Ln="kumar",
-                Status="Active",
-                Gndr="Male",
-                Email="suresh@gmail.com",
-                Dep="Department1",
-                BadgNo="343",
-                Company="Armco",
-                Role="management",
-                WpId= workPermitId,
-                MobileNo=1294487654
+                Id = 1222,
+                FirstName = "Sri",
+                MiddleName = "dev",
+                LastName = "kumar",
+                Name = "Suresh",
+                Role = "management",
+                IsActive = true,
+                ImageUrl = null, // Assuming no image URL is provided
+                PhoneNo = 1294487654,
+                Email = "suresh@gmail.com",
+                DepartmentId = 1, // Assigning a default value or according to your logic
+                JobTitle = "Transport",
+                WorkId = workPermitId,
+                DepartmentName = "Department1",
+                Gender = "Male",
+                BadgeNo = "343",
+                CompanyName = "Armco",
+                CreatedOn = DateTime.Now // You may adjust this to the actual creation date
             });
 
-            worker.Add(new WorkerSync
+            employees.Add(new Employee
             {
                 Id = 1224,
+                FirstName = "Smt",
+                MiddleName = "devi",
+                LastName = "nair",
                 Name = "Geetha",
-                Title = "Finance",
-                Fn = "Smt",
-                Mn = "devi",
-                Ln = "nair",
-                Status = "Active",
-                Gndr = "Female",
-                Email = "geetha@gmail.com",
-                Dep = "Department3",
-                BadgNo = "345",
-                Company = "Armco",
                 Role = "accountant",
-                WpId = workPermitId,
-                MobileNo = 1294487656
+                IsActive = true,
+                ImageUrl = null,
+                PhoneNo = 1294487656,
+                Email = "geetha@gmail.com",
+                DepartmentId = 3,
+                JobTitle = "Finance",
+                WorkId = workPermitId,
+                DepartmentName = "Department3",
+                Gender = "Female",
+                BadgeNo = "345",
+                CompanyName = "Armco",
+                CreatedOn = DateTime.Now
             });
 
-            worker.Add(new WorkerSync
+            employees.Add(new Employee
             {
                 Id = 1225,
+                FirstName = "Sri",
+                MiddleName = "tech",
+                LastName = "rao",
                 Name = "Arjun",
-                Title = "IT",
-                Fn = "Sri",
-                Mn = "tech",
-                Ln = "rao",
-                Status = "Inactive",
-                Gndr = "Male",
-                Email = "arjun@gmail.com",
-                Dep = "Department4",
-                BadgNo = "346",
-                Company = "Armco",
                 Role = "developer",
-                WpId = workPermitId,
-                MobileNo = 1294487657
+                IsActive = false,
+                ImageUrl = null,
+                PhoneNo = 1294487657,
+                Email = "arjun@gmail.com",
+                DepartmentId = 4,
+                JobTitle = "IT",
+                WorkId = workPermitId,
+                DepartmentName = "Department4",
+                Gender = "Male",
+                BadgeNo = "346",
+                CompanyName = "Armco",
+                CreatedOn = DateTime.Now
             });
 
-            worker.Add(new WorkerSync
+            employees.Add(new Employee
             {
                 Id = 1226,
+                FirstName = "Smt",
+                MiddleName = "hr",
+                LastName = "reddy",
                 Name = "Lakshmi",
-                Title = "HR",
-                Fn = "Smt",
-                Mn = "hr",
-                Ln = "reddy",
-                Status = "Active",
-                Gndr = "Female",
-                Email = "lakshmi@gmail.com",
-                Dep = "Department5",
-                BadgNo = "347",
-                Company = "Armco",
                 Role = "manager",
-                WpId = workPermitId,
-                MobileNo = 1294487658
+                IsActive = true,
+                ImageUrl = null,
+                PhoneNo = 1294487658,
+                Email = "lakshmi@gmail.com",
+                DepartmentId = 5,
+                JobTitle = "HR",
+                WorkId = workPermitId,
+                DepartmentName = "Department5",
+                Gender = "Female",
+                BadgeNo = "347",
+                CompanyName = "Armco",
+                CreatedOn = DateTime.Now
             });
 
-            worker.Add(new WorkerSync
+            employees.Add(new Employee
             {
                 Id = 1227,
+                FirstName = "Sri",
+                MiddleName = "op",
+                LastName = "singh",
                 Name = "Manoj",
-                Title = "Operations",
-                Fn = "Sri",
-                Mn = "op",
-                Ln = "singh",
-                Status = "Active",
-                Gndr = "Male",
-                Email = "manoj@gmail.com",
-                Dep = "Department6",
-                BadgNo = "348",
-                Company = "Armco",
                 Role = "operator",
-                WpId = workPermitId,
-                MobileNo = 1294487659
+                IsActive = true,
+                ImageUrl = null,
+                PhoneNo = 1294487659,
+                Email = "manoj@gmail.com",
+                DepartmentId = 6,
+                JobTitle = "Operations",
+                WorkId = workPermitId,
+                DepartmentName = "Department6",
+                Gender = "Male",
+                BadgeNo = "348",
+                CompanyName = "Armco",
+                CreatedOn = DateTime.Now
             });
-            if(workPermitId== 234)
-            {
-                worker.RemoveAt(0);
-                worker.RemoveAt(1);
-            }
-            workerList.Add(worker);
-            return worker.Count;
+            workerList.Add(employees);
+            return employees.Count;
         }
-        
+        private int LoadWorkers1(int workPermitId)
+        {
+            List<Employee> employees = new List<Employee>();
+            employees.Add(new Employee
+            {
+                Id = 1,
+                FirstName = "Sri",
+                MiddleName = "dev",
+                LastName = "kumar",
+                Name = "Suresh",
+                Role = "management",
+                IsActive = true,
+                ImageUrl = null, // Assuming no image URL is provided
+                PhoneNo = 1294487654,
+                Email = "suresh@gmail.com",
+                DepartmentId = 1, // Assigning a default value or according to your logic
+                JobTitle = "Transport",
+                WorkId = workPermitId,
+                DepartmentName = "Department1",
+                Gender = "Male",
+                BadgeNo = "343",
+                CompanyName = "Armco",
+                CreatedOn = DateTime.Now // You may adjust this to the actual creation date
+            });
+
+            employees.Add(new Employee
+            {
+                Id = 2,
+                FirstName = "Smt",
+                MiddleName = "devi",
+                LastName = "nair",
+                Name = "Geetha",
+                Role = "accountant",
+                IsActive = true,
+                ImageUrl = null,
+                PhoneNo = 1294487656,
+                Email = "geetha@gmail.com",
+                DepartmentId = 3,
+                JobTitle = "Finance",
+                WorkId = workPermitId,
+                DepartmentName = "Department3",
+                Gender = "Female",
+                BadgeNo = "345",
+                CompanyName = "Armco",
+                CreatedOn = DateTime.Now
+            });
+
+            employees.Add(new Employee
+            {
+                Id = 3,
+                FirstName = "Sri",
+                MiddleName = "tech",
+                LastName = "rao",
+                Name = "Arjun",
+                Role = "developer",
+                IsActive = false,
+                ImageUrl = null,
+                PhoneNo = 1294487657,
+                Email = "arjun@gmail.com",
+                DepartmentId = 4,
+                JobTitle = "IT",
+                WorkId = workPermitId,
+                DepartmentName = "Department4",
+                Gender = "Male",
+                BadgeNo = "346",
+                CompanyName = "Armco",
+                CreatedOn = DateTime.Now
+            });
+
+            employees.Add(new Employee
+            {
+                Id = 4,
+                FirstName = "Smt",
+                MiddleName = "hr",
+                LastName = "reddy",
+                Name = "Lakshmi",
+                Role = "manager",
+                IsActive = true,
+                ImageUrl = null,
+                PhoneNo = 1294487658,
+                Email = "lakshmi@gmail.com",
+                DepartmentId = 5,
+                JobTitle = "HR",
+                WorkId = workPermitId,
+                DepartmentName = "Department5",
+                Gender = "Female",
+                BadgeNo = "347",
+                CompanyName = "Armco",
+                CreatedOn = DateTime.Now
+            });
+
+            employees.Add(new Employee
+            {
+                Id = 5,
+                FirstName = "Sri",
+                MiddleName = "op",
+                LastName = "singh",
+                Name = "Manoj",
+                Role = "operator",
+                IsActive = true,
+                ImageUrl = null,
+                PhoneNo = 1294487659,
+                Email = "manoj@gmail.com",
+                DepartmentId = 6,
+                JobTitle = "Operations",
+                WorkId = workPermitId,
+                DepartmentName = "Department6",
+                Gender = "Male",
+                BadgeNo = "348",
+                CompanyName = "Armco",
+                CreatedOn = DateTime.Now
+            });
+            workerList.Add(employees);
+            return employees.Count;
+        }
+
         private void LoadWorkPermit()
         {
-            WorkPermitSync workPermit = new WorkPermitSync();
+            WorkPermit workPermit = new WorkPermit();
             int workerCount = 0;
-            workPermit = new WorkPermitSync
+            List<Worker> workers = new List<Worker>();
+            workers.Add(new Worker { EmployeeId = 1222 });
+            workers.Add(new Worker { EmployeeId = 1224 });
+            workers.Add(new Worker { EmployeeId = 1225 });
+            workers.Add(new Worker { EmployeeId = 1226 });
+            workers.Add(new Worker { EmployeeId = 1227 });
+            workPermit = new WorkPermit
             {
                 Id = 232,
-                Dat = DateTime.Now,
-                Isuer = "Admin",
-                Recver = "Android Device 45",
-                Plnt = "New plant",
-                Lat = 5.66,
-                Long = 945.93,
-                Typ = "Cold Work Permit",
-                CS = "Active",
-                WC = 6,
-                Adress = "some address",
-                DevicId = "Device 4002"
-            };
-            workPermitList.Add(workPermit);
-            workerCount= LoadWorkers(workPermit.Id);
-            workPermitList[workPermitList.Count - 1].WC = workerCount;
-            workPermit = new WorkPermitSync
-            {
-                Id = 234,
-                Dat = DateTime.Now,
-                Isuer = "Admin",
-                Recver = "Android Device 47",
-                Plnt = "New plant2",
-                Lat = 7.66,
-                Long = 949.93,
-                Typ = "Cold Work Permit",
-                CS = "Active",
-                WC = 3,
-                Adress = "some address",
-                DevicId = "Device 4008"
+                WorkPermitTypeId = 1, // Example ID, adjust as needed
+                WorkPermitType = "Cold Work Permit",
+                Compliance = "Active",
+                ReceiverId = 101, // Example ID, adjust as needed
+                IssuerId = 201, // Example ID, adjust as needed
+                IssuerName = "Admin",
+                ReceiverName = "Android Device 45",
+                PlannedStartDate = DateTime.Now,
+                Latitude = 5.66,
+                Longitude = 945.93,
+                Address = "some address",
+                DeviceId = 4002,
+                DeviceName = "Device 4002",
+                LocationId = 10, // Example ID, adjust as needed
+                LocationName = "Location 1",
+                Workers = workers
             };
             workPermitList.Add(workPermit);
             workerCount = LoadWorkers(workPermit.Id);
-            workPermitList[workPermitList.Count - 1].WC = workerCount;
+            workers = new List<Worker>();
+            workers.Add(new Worker { EmployeeId = 1 });
+            workers.Add(new Worker { EmployeeId = 2 });
+            workers.Add(new Worker { EmployeeId = 3 });
+            workers.Add(new Worker { EmployeeId = 4 });
+            workers.Add(new Worker { EmployeeId = 5 });
+            workPermit = new WorkPermit
+            {
+                Id = 233,
+                WorkPermitTypeId = 2, // Example ID, adjust as needed
+                WorkPermitType = "Hot Work Permit",
+                Compliance = "Active",
+                ReceiverId = 102, // Example ID, adjust as needed
+                IssuerId = 202, // Example ID, adjust as needed
+                IssuerName = "Admin",
+                ReceiverName = "Android Device 46",
+                PlannedStartDate = DateTime.Now,
+                Latitude = 6.66,
+                Longitude = 946.93,
+                Address = "another address",
+                DeviceId = 4003,
+                DeviceName = "Device 4003",
+                LocationId = 11, // Example ID, adjust as needed
+                LocationName = "Location 2",
+                Workers = workers
+            };
+            workPermitList.Add(workPermit);
+            workerCount = LoadWorkers1(workPermit.Id);
         }
 
         private async void SendWorkPermit()
@@ -438,16 +688,19 @@ namespace SendingJsonData
             int temp = workPermitIndx;
             temp++;
             curntWorkPermitNo = temp.ToString("D2");
+
             string workPermitJsonStr = JsonSerializer.Serialize(workPermitList[workPermitIndx]);
+            workPermitJsonStr = workPermitJsonStr.Replace("\"", "\\\"").Replace("'", "\\'");
             string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'WP{curntWorkPermitNo}_SYNC, {workPermitJsonStr}'";
             runAdbCommand(cmd);
         }
 
         private async void SendWorker()
         {
-            workerIndx=workerIndx+1;
+            workerIndx = workerIndx + 1;
             curntWorkerNo = workerIndx.ToString("D3");
             string workerJsonStr = JsonSerializer.Serialize(workerList[workPermitIndx][workerIndx - 1]);
+            workerJsonStr = workerJsonStr.Replace("\"", "\\\"").Replace("'", "\\'");
             string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'WP{curntWorkPermitNo}_W{curntWorkerNo}_SYNC, {workerJsonStr}'";
             runAdbCommand(cmd);
         }
@@ -488,27 +741,32 @@ namespace SendingJsonData
             string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
             string adbPath = Path.GetFullPath(Path.Combine(currentDirectory, @"..\..\..\", "platform-tools", "adb.exe"));
 
-                ProcessStartInfo processInfo = new ProcessStartInfo
-                {
-                    FileName = adbPath,
-                    Arguments = "devices",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
+            ProcessStartInfo processInfo = new ProcessStartInfo
+            {
+                FileName = adbPath,
+                Arguments = "devices",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
 
-                using (var adbProcess = new Process())
-                {
-                    adbProcess.StartInfo = processInfo;
-                    adbProcess.Start();
-                    string output =  adbProcess.StandardOutput.ReadToEnd();
-                    string error =  adbProcess.StandardError.ReadToEnd();
-                    adbProcess.WaitForExit();
+            using (var adbProcess = new Process())
+            {
+                adbProcess.StartInfo = processInfo;
+                adbProcess.Start();
+                string output = adbProcess.StandardOutput.ReadToEnd();
+                string error = adbProcess.StandardError.ReadToEnd();
+                adbProcess.WaitForExit();
                 if (output.Contains(reciever))
                     return true;
-                }
+            }
             return false;
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            textBox1.Text = "";
         }
     }
 }

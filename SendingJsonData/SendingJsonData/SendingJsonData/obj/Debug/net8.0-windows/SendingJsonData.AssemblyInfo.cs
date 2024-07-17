@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SendingJsonData")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0693b45a1ffefa0a85b7a84f5e32c7594cb8188c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f44c4374cb9af36682352200dd1579d6ebbe3056")]
 [assembly: System.Reflection.AssemblyProductAttribute("SendingJsonData")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SendingJsonData")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
