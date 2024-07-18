@@ -41,10 +41,10 @@ namespace SendingJsonData
             workerIndx = 0;
             workPermitIndx = 0;
             StopHandShakeMonitoring();
-            runAdbCommand("logcat -c");
+            await runAdbCommand("logcat -c");
             StartHandShakeMonitoring();
             string command = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'NEW_WP_SYNC'";
-            runAdbCommand(command);
+            await runAdbCommand(command);
         }
         private void StopHandShakeMonitoring()
         {
@@ -93,7 +93,6 @@ namespace SendingJsonData
             }
             catch (OperationCanceledException)
             {
-                // Handle the cancellation exception if needed
             }
             catch (Exception ex)
             {
@@ -109,163 +108,99 @@ namespace SendingJsonData
 
                 string data;
                 responseMsg = splitString[0];
-
-
-                InvokeIfNeeded(() =>
+                string cmd;
+               await InvokeIfNeededAsync(async () =>
                 {
-                    if (responseMsg.Equals("READY_NEW_WP_SYNC"))
-                    {
-                        InvokeIfNeeded(() =>
-                        {
-                            string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'WP_COUNT, {workPermitList.Count}'";
-                            runAdbCommand(cmd);
 
-                        });
-                    }
-                    else if (responseMsg.Equals("SUCCESS"))
-                    {
-                        InvokeIfNeeded(() =>
-                        {
-                            MessageBox.Show("Device Synced Successfully");
-                            runAdbCommand("logcat -c");
-                        });
-                    }
-                    else if (responseMsg.Equals("READY_WP_COUNT"))
-                    {
-                        InvokeIfNeeded(() =>
-                        {
-                            SendWorkPermit();
-                            runAdbCommand("logcat -c");
-                        });
-                    }
-                    else if (responseMsg.Equals($"WP{curntWorkPermitNo}_RECEIVED"))
-                    {
-                        InvokeIfNeeded(() =>
-                        {
-                            string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'W_COUNT, {workerList[workPermitIndx].Count}'";
-                            runAdbCommand(cmd);
-                            runAdbCommand("logcat -c");
-                        });
-                    }
-                    else if (responseMsg.Equals("READY_W_COUNT"))
-                    {
-                        InvokeIfNeeded(() =>
-                        {
-
-                            SendWorker();
-                            runAdbCommand("logcat -c");
-                        });
-                    }
-                    else if (responseMsg.Equals($"WP{curntWorkPermitNo}_W{curntWorkerNo}_RECEIVED"))
-                    {
-                        InvokeIfNeeded(() =>
-                        {
-                            if (workerIndx >= workerList[workPermitIndx].Count && workPermitIndx + 1 >= workPermitList.Count)
-                            {
-                                runAdbCommand("shell am broadcast -a DataFromDesktop --es DataFromDesktop 'VERIFY'");
-                                runAdbCommand("logcat -c");
-                            }
-                            else if (workerIndx >= workerList[workPermitIndx].Count)
-                            {
-                                workPermitIndx = workPermitIndx + 1;
-                                workerIndx = 0;
-                                SendWorkPermit();
-                                runAdbCommand("logcat -c");
-                            }
-                            else
-                            {
-                                SendWorker();
-                                runAdbCommand("logcat -c");
-                            }
-                        });
-                    }
-                    else if (responseMsg.Equals("FAILURE"))
-                    {
-                        InvokeIfNeeded(() =>
-                        {
-
-                            runAdbCommand("logcat -c");
-                        });
-                    }
-                    //Data sync from android to Desktop
                     switch (responseMsg)
                     {
-                        case "UPDATE_WP_SYNC":
-                            InvokeIfNeeded(() =>
-                            {
-                                string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP_COUNT'";
-                                runAdbCommand(cmd);
-                                runAdbCommand("logcat -c");
-                            });
+                        case "READY_NEW_WP_SYNC":
+                            textBox2.Text += "READY_NEW_WP_SYNC";
+                            textBox2.Text += Environment.NewLine;
+                            textBox2.Text += Environment.NewLine;
+                            textBox2.Text += $"WP_COUNT, {workPermitList.Count}";
+                            textBox2.Text += Environment.NewLine;
+                            textBox2.Text += Environment.NewLine;
+                            cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'WP_COUNT, {workPermitList.Count}'";
+                            await runAdbCommand(cmd);
                             break;
+
+                        case "READY_WP_COUNT":
+                            SendWorkPermit();
+                            break;
+
+                        case "READY_W_COUNT":
+                            SendWorker();
+                            break;
+
+                        case "SUCCESS":
+                            break;
+
+                        case "FAILURE":
+                            break;
+
+                        //********************************************************************
+                        //Update
+
+                        case "UPDATE_WP_SYNC":
+                                cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP_COUNT'";
+                                await runAdbCommand(cmd);    
+                            break;
+
                         case "WP_COUNT_TABLET":
-                            InvokeIfNeeded(() =>
-                            {
                                 textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                textBox1.Text += Environment.NewLine;
                                 data = splitString[1];
                                 workPermitCount = Int32.Parse(data.Trim());
                                 workPermitIndx++;
                                 curntWorkPermitNo = workPermitIndx.ToString("D2");
-                                string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP{curntWorkPermitNo}_TABLET'";
-                                runAdbCommand(cmd);
-                                runAdbCommand("logcat -c");
-
-                            });
+                                cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP{curntWorkPermitNo}_TABLET'";
+                                await runAdbCommand(cmd);            
                             break;
+
                         case "W_SYNC_TABLET":
-                            InvokeIfNeeded(() =>
-                            {
                                 textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                textBox1.Text += Environment.NewLine;
                                 data = splitString[1];
                                 workerCount = Int32.Parse(data.Trim());
                                 curntWorkerNo = workerIndx.ToString("D3");
-                                string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP{curntWorkPermitNo}_W{curntWorkerNo}_TABLET'";
-                                runAdbCommand(cmd);
-                                runAdbCommand("logcat -c");
-
-                            });
+                                cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP{curntWorkPermitNo}_W{curntWorkerNo}_TABLET'";
+                                await runAdbCommand(cmd);                   
                             break;
+
                         case "SUCCESS_CLEAR":
-                            InvokeIfNeeded(() =>
-                            {
-
-                                runAdbCommand("logcat -c");
-                            });
                             break;
+
+                        case "FAILURE_CLEAR":
+                            break;
+
                         default:
+
                             if (responseMsg.Equals($"WP{curntWorkPermitNo}_SYNC_TABLET"))
                             {
-                                InvokeIfNeeded(() =>
-                                {
                                     textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                    textBox1.Text += Environment.NewLine;
                                     workerIndx = 1;
-                                    string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'WP{curntWorkPermitNo}_TABLET_RECEIVED'";
-                                    runAdbCommand(cmd);
-                                    runAdbCommand("logcat -c");
-                                });
+                                    cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'WP{curntWorkPermitNo}_TABLET_RECEIVED'";
+                                    await runAdbCommand(cmd);         
                             }
                             else if (responseMsg.Equals($"WP{curntWorkPermitNo}_W{curntWorkerNo}_SYNC_TABLET"))
                             {
-                                InvokeIfNeeded(() =>
-                                {
-
-
-                                    string cmd;
                                     if (workerIndx >= workerCount && workPermitIndx >= workPermitCount)
                                     {
                                         textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                        textBox1.Text += Environment.NewLine;
                                         cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'CLEAR_TABLET'";
-                                        runAdbCommand(cmd);
-                                        runAdbCommand("logcat -c");
+                                        await runAdbCommand(cmd);
                                     }
                                     else if (workerIndx >= workerCount)
                                     {
                                         textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                        textBox1.Text += Environment.NewLine;
                                         workPermitIndx++;
                                         curntWorkPermitNo = workPermitIndx.ToString("D2");
                                         cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP{curntWorkPermitNo}_TABLET'";
-                                        runAdbCommand(cmd);
-                                        runAdbCommand("logcat -c");
+                                        await runAdbCommand(cmd);
                                     }
                                     else
                                     {
@@ -273,11 +208,41 @@ namespace SendingJsonData
                                         curntWorkerNo = workerIndx.ToString("D3");
                                         curntWorkPermitNo = workPermitIndx.ToString("D2");
                                         textBox1.Text += splitString[0] + ",  " + splitString[1] + Environment.NewLine;
+                                        textBox1.Text += Environment.NewLine;
                                         cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'GET_WP{curntWorkPermitNo}_W{curntWorkerNo}_TABLET'";
-                                        runAdbCommand(cmd);
-                                        runAdbCommand("logcat -c");
+                                        await runAdbCommand(cmd);
                                     }
-                                });
+                            }
+
+                            //********************************************************************
+                            //Update
+                            else if (responseMsg.Equals($"WP{curntWorkPermitNo}_RECEIVED"))
+                            {
+
+                                textBox2.Text += $"W_COUNT, {workerList[workPermitIndx].Count}";
+                                textBox2.Text += Environment.NewLine;
+                                textBox2.Text += Environment.NewLine;
+                                cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'W_COUNT, {workerList[workPermitIndx].Count}'";
+                                await runAdbCommand(cmd);
+
+                            }
+                            else if (responseMsg.Equals($"WP{curntWorkPermitNo}_W{curntWorkerNo}_RECEIVED"))
+                            {
+
+                                if (workerIndx >= workerList[workPermitIndx].Count && workPermitIndx + 1 >= workPermitList.Count)
+                                {
+                                    await runAdbCommand("shell am broadcast -a DataFromDesktop --es DataFromDesktop 'VERIFY'");
+                                }
+                                else if (workerIndx >= workerList[workPermitIndx].Count)
+                                {
+                                    workPermitIndx = workPermitIndx + 1;
+                                    workerIndx = 0;
+                                    SendWorkPermit();
+                                }
+                                else
+                                {
+                                    SendWorker();
+                                }
                             }
                             break;
                     };
@@ -351,15 +316,15 @@ namespace SendingJsonData
             }
         }
 
-        private async void InvokeIfNeeded(Action action)
+        private Task InvokeIfNeededAsync(Func<Task> action)
         {
-            if (this.InvokeRequired)
+            if (InvokeRequired)
             {
-                this.Invoke(action);
+                return Task.Run(() => Invoke(new MethodInvoker(async () => await action())));
             }
             else
             {
-                action();
+                return action();
             }
         }
 
@@ -371,17 +336,11 @@ namespace SendingJsonData
                 runAdbCommand("logcat -c");
                 return "";
             }
-            int stringSeparatorIndx = 0;
+            string tag = "HandShakeMsg";
+            int stringSeparatorIndx = line.IndexOf(tag);
 
-            for (int i = line.Length - 1; i >= 0; i--)
-            {
-                if (line[i] == ':')
-                {
-                    stringSeparatorIndx = i;
-                    break;
-                }
-            }
-            string result = line.Substring(stringSeparatorIndx + 1).Trim();
+            string result = line.Substring(stringSeparatorIndx + tag.Length + 1).Trim();
+            runAdbCommand("logcat -c");
             return result;
         }
 
@@ -690,9 +649,11 @@ namespace SendingJsonData
             curntWorkPermitNo = temp.ToString("D2");
 
             string workPermitJsonStr = JsonSerializer.Serialize(workPermitList[workPermitIndx]);
+            textBox2.Text += workPermitJsonStr + Environment.NewLine;
+            textBox2.Text += Environment.NewLine;
             workPermitJsonStr = workPermitJsonStr.Replace("\"", "\\\"").Replace("'", "\\'");
             string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'WP{curntWorkPermitNo}_SYNC, {workPermitJsonStr}'";
-            runAdbCommand(cmd);
+            await runAdbCommand(cmd);
         }
 
         private async void SendWorker()
@@ -700,9 +661,11 @@ namespace SendingJsonData
             workerIndx = workerIndx + 1;
             curntWorkerNo = workerIndx.ToString("D3");
             string workerJsonStr = JsonSerializer.Serialize(workerList[workPermitIndx][workerIndx - 1]);
+            textBox2.Text += workerJsonStr + Environment.NewLine;
+            textBox2.Text += Environment.NewLine;
             workerJsonStr = workerJsonStr.Replace("\"", "\\\"").Replace("'", "\\'");
             string cmd = $"shell am broadcast -a DataFromDesktop --es DataFromDesktop 'WP{curntWorkPermitNo}_W{curntWorkerNo}_SYNC, {workerJsonStr}'";
-            runAdbCommand(cmd);
+            await runAdbCommand(cmd);
         }
 
         private void InitializeUSBWatcher()
@@ -767,6 +730,12 @@ namespace SendingJsonData
         private void button2_Click(object sender, EventArgs e)
         {
             textBox1.Text = "";
+            textBox2.Text = "";
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }
